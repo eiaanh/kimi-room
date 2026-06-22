@@ -8,13 +8,12 @@ import { setKimiTheme } from "@/lib/theme-actions";
 import type { GraphData, GraphNode, GraphNodeKind } from "@/lib/graph-data";
 import { SCORE_FONT_BODY } from "@/lib/score-colors";
 
-// /room/graph — her mind as a galaxy enshrined under a glass bell (Le Petit
-// Prince's rose, kept under glass). The static KG is a turning 3D point-cloud;
-// each memory is a small sun coloured by valence, the rose breathes at centre,
-// last night's dream walk lights up rose-pink. Painting style switches between
-// galaxy / ink / silk; the bell frame and rose stay fixed. Ported from the
-// canon (Downloads/kimi-rose-zip/her-mind-canon.html) — pure canvas 2D, a
-// hand-rolled projection, no 3D lib.
+// /room/graph — her mind as a galaxy enshrined under a glass bell (Le
+// Petit Prince's rose, kept under glass). The static KG is a turning 3D
+// point-cloud; each memory is a small sun coloured by valence, the rose breathes
+// at centre, last night's dream walk lights up rose-pink. Painting style switches
+// between galaxy / ink / silk; the bell frame and rose stay fixed. Ported from an
+// internal prototype — pure canvas 2D, a hand-rolled projection, no 3D lib.
 
 // ── canon palette (approved look) — kept verbatim so the rose-pink reads true ──
 const GRAPH_NIGHT = {
@@ -169,8 +168,9 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
     const settled = Array.from({ length: 5 }, (_, i) => { const { a, b } = hash01("rest" + i); return { dx: (a - 0.5) * 1.5, rot: b * Math.PI, sz: 0.85 + a * 0.4 }; });
 
     // rose lineart — deep rose (玫红), both day & night
+    const roseGold = new Image(); roseGold.src = "/icons/graph-rose-gold.png";
     const roseDeep = new Image(); roseDeep.src = "/icons/graph-rose-deep.png";
-    const ROSE = { h: 0.34, dy: 0.12 };
+    const ROSE = { h: 0.38, dy: 0.12 };
 
     const view = { rotX: -0.4, rotY: 0.4, zoom: 1 };
     let W = 0, H = 0, DPR = 1, cx = 0, cy = 0, R = 1, M = 1, t = 0;
@@ -255,7 +255,7 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
         const depthA = 0.32 + ((p.z + 1.1) / 2.2) * 0.68;
         const col = nodeColor(node, Th), sz = baseSize(node) * p.s;
         const isSurf = dreamSurfaced.has(id), isLink = dreamLinked.has(id), isSel = selRef.current === id;
-        const pulse = isSurf ? 0.6 + 0.4 * Math.sin(t * 0.08) : 1;
+        const pulse = isSurf ? 0.55 + 0.45 * Math.sin(t * 0.035 + hash01(id).a * 6.283) : 1;
         if (md === "galaxy") drawNodeGalaxy(p, node, col, sz, depthA, isSurf, isLink, pulse, Th, dk);
         else if (md === "ink") drawNodeInk(p, node, col, sz, depthA, isSurf, pulse, Th);
         else drawNodeSilk(p, node, col, sz, depthA, isSurf, pulse, Th, dk);
@@ -286,9 +286,10 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
       const c = ctx!; c.save(); c.globalCompositeOperation = dk ? "lighter" : "source-over";
       if (isSurf) { const h = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30 * pulse); h.addColorStop(0, hexA(Th.rose, 0.4 * pulse)); h.addColorStop(1, hexA(Th.rose, 0)); c.fillStyle = h; c.beginPath(); c.arc(p.x, p.y, 30 * pulse, 0, 7); c.fill(); }
       else if (isLink) { const h = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, 18); h.addColorStop(0, hexA(Th.warmth, 0.3)); h.addColorStop(1, hexA(Th.warmth, 0)); c.fillStyle = h; c.beginPath(); c.arc(p.x, p.y, 18, 0, 7); c.fill(); }
-      const bloom = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz * 2.8);
-      bloom.addColorStop(0, hexA(col, (dk ? 0.24 : 0.38) * depthA)); bloom.addColorStop(1, hexA(col, 0));
-      c.fillStyle = bloom; c.beginPath(); c.arc(p.x, p.y, sz * 2.8, 0, 7); c.fill();
+      const beat = node.kind === "memory" && node.weight > 0.6, osc = beat ? Math.sin(t * 0.03 + hash01(node.id).a * 6.283) : 0, brad = beat ? 0.85 + 0.28 * osc : 1, bal = beat ? 0.72 + 0.4 * osc : 1;
+      const bloom = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz * 2.8 * brad);
+      bloom.addColorStop(0, hexA(col, (dk ? 0.24 : 0.38) * depthA * bal)); bloom.addColorStop(1, hexA(col, 0));
+      c.fillStyle = bloom; c.beginPath(); c.arc(p.x, p.y, sz * 2.8 * brad, 0, 7); c.fill();
       c.globalAlpha = depthA; c.fillStyle = node.kind === "entity" ? Th.goldBright : col;
       if (node.kind === "entity") { c.beginPath(); c.moveTo(p.x, p.y - sz); c.lineTo(p.x + sz, p.y); c.lineTo(p.x, p.y + sz); c.lineTo(p.x - sz, p.y); c.closePath(); c.fill(); }
       else if (node.kind === "topic") { c.strokeStyle = col; c.lineWidth = 1.4; c.beginPath(); c.arc(p.x, p.y, sz + 0.5, 0, 7); c.stroke(); }
@@ -351,13 +352,15 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
 
     /* THE GLASS BELL */
     function drawRose(x: number, y: number, h: number, Th: GraphTheme, dk: boolean, alpha: number) {
-      const c = ctx!; const img = roseDeep; const pulse = 0.78 + 0.22 * Math.sin(t * 0.05);
+      const c = ctx!; const img = dk ? roseGold : roseDeep; const pulse = 0.84 + 0.16 * Math.sin(t * 0.022);
       c.save(); c.globalCompositeOperation = dk ? "lighter" : "source-over";
-      const gr = h * (0.85 + 0.12 * Math.sin(t * 0.05));
+      const gr = h * (1.08 + 0.08 * Math.sin(t * 0.022));
       const g = c.createRadialGradient(x, y, 0, x, y, gr);
-      g.addColorStop(0, hexA(Th.rose, (dk ? 0.26 : 0.24) * pulse));
-      g.addColorStop(0.55, hexA(Th.roseDeep, (dk ? 0.14 : 0.07) * pulse));
-      g.addColorStop(1, hexA(Th.rose, 0));
+      // night: gold halo so the gilt rose holds against the dense star field; day keeps rose
+      const hc = dk ? Th.goldBright : Th.rose, hc2 = dk ? Th.gold : Th.roseDeep;
+      g.addColorStop(0, hexA(hc, (dk ? 0.32 : 0.24) * pulse));
+      g.addColorStop(0.4, hexA(hc2, (dk ? 0.15 : 0.07) * pulse));
+      g.addColorStop(1, hexA(hc, 0));
       c.fillStyle = g; c.beginPath(); c.arc(x, y, gr, 0, 7); c.fill();
       c.globalCompositeOperation = "source-over";
       if (img.complete && img.naturalWidth) {
@@ -410,7 +413,7 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
       c.strokeStyle = gold(0.6); c.lineWidth = 1.4; c.beginPath(); c.moveTo(cx, domeTopY - M * 0.004); c.lineTo(cx, knobY + 4); c.stroke();
       c.fillStyle = gold(0.85); c.beginPath(); c.arc(cx, knobY, M * 0.012, 0, 7); c.fill();
       c.strokeStyle = gold(0.5); c.lineWidth = 0.7; c.beginPath(); c.ellipse(cx, knobY + M * 0.013, M * 0.017, M * 0.006, 0, 0, 7); c.stroke();
-      { const sy = knobY - M * 0.028, r = M * 0.012, tw = 0.55 + 0.45 * Math.sin(t * 0.06);
+      { const sy = knobY - M * 0.028, r = M * 0.012, tw = 0.6 + 0.4 * Math.sin(t * 0.03);
         c.save(); c.globalCompositeOperation = dk ? "lighter" : "source-over"; c.strokeStyle = hexA(Th.goldBright, 0.4 + tw * 0.5); c.lineWidth = 1;
         c.beginPath(); c.moveTo(cx - r, sy); c.lineTo(cx + r, sy); c.moveTo(cx, sy - r * 1.5); c.lineTo(cx, sy + r * 1.5);
         c.moveTo(cx - r * 0.5, sy - r * 0.5); c.lineTo(cx + r * 0.5, sy + r * 0.5); c.moveTo(cx - r * 0.5, sy + r * 0.5); c.lineTo(cx + r * 0.5, sy - r * 0.5); c.stroke(); c.restore(); }
@@ -441,12 +444,12 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
       const rx = cx, ry = cy + M * ROSE.dy;
       c.save(); c.globalCompositeOperation = dk ? "lighter" : "source-over";
       for (let k = 0; k < 8; k++) {
-        const a = (k / 8) * Math.PI * 2 + t * 0.012;
-        const rr = M * 0.085 * (0.65 + 0.35 * Math.sin(t * 0.04 + k * 1.3));
+        const a = (k / 8) * Math.PI * 2 + t * 0.008;
+        const rr = M * 0.085 * (0.65 + 0.35 * Math.sin(t * 0.02 + k * 1.3));
         const sxp = rx + Math.cos(a) * rr, syp = ry + Math.sin(a) * rr * 0.82;
-        const tw = 0.3 + 0.7 * Math.abs(Math.sin(t * 0.07 + k * 1.7));
+        const tw = 0.3 + 0.7 * Math.abs(Math.sin(t * 0.032 + k * 1.7));
         c.fillStyle = hexA(Th.goldBright, tw * (dk ? 0.6 : 0.4)); c.beginPath(); c.arc(sxp, syp, 0.9 + tw, 0, 7); c.fill();
-        if (tw > 0.82) { c.strokeStyle = hexA(Th.goldBright, (tw - 0.82) * 2.5); c.lineWidth = 0.5; c.beginPath(); c.moveTo(sxp - 4, syp); c.lineTo(sxp + 4, syp); c.moveTo(sxp, syp - 4); c.lineTo(sxp, syp + 4); c.stroke(); }
+        if (tw > 0.86) { c.strokeStyle = hexA(Th.goldBright, (tw - 0.86) * 2.5); c.lineWidth = 0.5; c.beginPath(); c.moveTo(sxp - 4, syp); c.lineTo(sxp + 4, syp); c.moveTo(sxp, syp - 4); c.lineTo(sxp, syp + 4); c.stroke(); }
       }
       c.restore();
       // drifting petals
@@ -494,14 +497,14 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
     const ro = new ResizeObserver(() => { resize(); });
     ro.observe(wrap);
     const onLoad = () => { resize(); };
-    roseDeep.addEventListener("load", onLoad);
+    roseGold.addEventListener("load", onLoad); roseDeep.addEventListener("load", onLoad);
     resize(); tick();
 
     return () => {
       cancelAnimationFrame(raf); ro.disconnect();
       canvas.removeEventListener("pointerdown", onDown); canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp); canvas.removeEventListener("wheel", onWheel);
-      roseDeep.removeEventListener("load", onLoad);
+      roseGold.removeEventListener("load", onLoad); roseDeep.removeEventListener("load", onLoad);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, dreamSurfaced, dreamLinked]);
