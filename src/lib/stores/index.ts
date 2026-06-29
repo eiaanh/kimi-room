@@ -21,17 +21,8 @@ import type { AdapterBundle } from "./types";
 // the runtime. canon prod wires its own adapter (Phase 3); unaffected here.
 // See docs/SELF-HOST.md.
 function selectAdapter(): AdapterBundle {
-  if (isCanon) return idbAdapter;
-  switch (process.env.NEXT_PUBLIC_KIMI_ADAPTER) {
-    case "supabase":
-      return supabaseAdapter;
-    case "prisma":
-      return prismaAdapter;
-    case "core":
-      return coreAdapter;
-    default:
-      return idbAdapter;
-  }
+  // 临时强制使用 coreAdapter 进行测试
+  return coreAdapter;
 }
 
 let _bundle: AdapterBundle | null = null;
