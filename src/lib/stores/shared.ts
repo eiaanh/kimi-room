@@ -81,8 +81,9 @@ export function applyFilter<T extends StoreEntry>(rows: T[], filter?: Filter): T
 
 export function searchRows<T extends StoreEntry>(rows: T[], query: string): T[] {
   const q = query.toLowerCase().trim();
-  if (!q) return [];
-  return rows.filter((r) => JSON.stringify(r).toLowerCase().includes(q));
+  if (!q) return rows.slice(0, 20); 
+  const matched = rows.filter((r) => JSON.stringify(r).toLowerCase().includes(q));
+  return matched.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 20);
 }
 
 // ── put upsert/timestamp semantics — identical to idb-adapter's makeStore.put.
